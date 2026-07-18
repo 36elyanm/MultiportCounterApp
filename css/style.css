@@ -733,6 +733,7 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   box-shadow: 0 6px 20px -4px rgba(var(--accent-rgb), 0.5), inset 0 1px 0 rgba(255,255,255,0.4);
 }
 .sheet-save-btn:active { opacity: 0.75; }
+.sheet-save-btn:disabled { opacity: 0.6; cursor: default; }
 
 .sheet-delete-btn {
   width: 100%;
@@ -868,9 +869,14 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
 }
 
 .auth-error {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--red);
   text-align: center;
+  background: rgba(255, 59, 48, 0.12);
+  border: 1px solid rgba(255, 59, 48, 0.25);
+  border-radius: 12px;
+  padding: 10px 12px;
   margin: -6px 0 14px;
 }
 

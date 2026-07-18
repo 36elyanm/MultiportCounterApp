@@ -129,11 +129,17 @@
       headers: { "Content-Type": "application/json" },
       ...options,
     });
+    const rawText = await res.text();
     let data = null;
     try {
-      data = await res.json();
+      data = rawText ? JSON.parse(rawText) : {};
     } catch (e) {
-      data = null;
+      // A non-JSON response (e.g. an HTML error page) means the request
+      // never reached the API route at all — surface that clearly
+      // instead of silently treating it as an empty success.
+      throw new Error(
+        `Server returned an unexpected response (status ${res.status}, not JSON). The API may not be deployed yet.`
+      );
     }
     if (!res.ok) {
       throw new Error((data && data.error) || `Request failed (${res.status})`);
@@ -206,12 +212,14 @@
 
   async function signup(email, password) {
     const data = await api("/api/signup", { method: "POST", body: JSON.stringify({ email, password }) });
+    if (!data || !data.user) throw new Error("Unexpected response from the server.");
     setSignedInUI(data.user);
     await pullCountersFromServer();
   }
 
   async function login(email, password) {
     const data = await api("/api/login", { method: "POST", body: JSON.stringify({ email, password }) });
+    if (!data || !data.user) throw new Error("Unexpected response from the server.");
     setSignedInUI(data.user);
     await pullCountersFromServer();
   }
@@ -713,10 +721,13 @@
       authError.style.display = "block";
       return;
     }
+    const modeAtSubmit = authMode;
+    const originalLabel = authSubmitBtn.textContent;
     authSubmitBtn.disabled = true;
+    authSubmitBtn.textContent = modeAtSubmit === "signup" ? "Creating Account…" : "Signing In…";
     authError.style.display = "none";
     try {
-      if (authMode === "signup") {
+      if (modeAtSubmit === "signup") {
         await signup(email, password);
       } else {
         await login(email, password);
@@ -729,6 +740,7 @@
       haptic(20);
     } finally {
       authSubmitBtn.disabled = false;
+      authSubmitBtn.textContent = originalLabel;
     }
   });
 
