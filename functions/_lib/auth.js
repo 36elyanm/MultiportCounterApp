@@ -1,3 +1,6 @@
+// Shared by the route handlers in functions/api/. This file has no
+// onRequest* exports, so Cloudflare Pages does not treat it as a route.
+
 const PBKDF2_ITERATIONS = 100000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -37,7 +40,6 @@ export async function hashPassword(password, saltHex) {
 export async function verifyPassword(password, saltHex, expectedHashHex) {
   const { hash } = await hashPassword(password, saltHex);
   if (hash.length !== expectedHashHex.length) return false;
-  // Constant-time-ish comparison
   let diff = 0;
   for (let i = 0; i < hash.length; i++) {
     diff |= hash.charCodeAt(i) ^ expectedHashHex.charCodeAt(i);
@@ -82,10 +84,36 @@ export function parseCookies(request) {
   return cookies;
 }
 
+// Same-origin (Pages Functions serve the API from the exact same domain
+// as the static site), so SameSite=Lax is enough — no cross-site cookie
+// sending is needed the way a separately-hosted Worker API would need.
 export function sessionCookie(token, maxAgeSeconds) {
-  return `session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${maxAgeSeconds}`;
+  return `session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 }
 
 export function clearedSessionCookie() {
-  return "session=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0";
+  return "session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+}
+
+export async function requireUser(request, env) {
+  const cookies = parseCookies(request);
+  return getUserFromSession(env.DB, cookies.session);
+}
+
+export function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export function jsonWithCookie(data, status, cookie) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", "Set-Cookie": cookie },
+  });
+}
+
+export function isValidEmail(email) {
+  return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }

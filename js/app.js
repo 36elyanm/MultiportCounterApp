@@ -8,9 +8,9 @@
   const REDUCE_TRANSPARENCY_KEY = "multiport-counter.reduceTransparency";
   const CURRENCY_KEY = "multiport-counter.showCurrency";
 
-  // Cloudflare Worker API base URL. Empty string means "same origin as
-  // this page" (useful if the frontend is served from the same domain
-  // as the Worker). Set this to your deployed Worker URL otherwise.
+  // The API is served by Cloudflare Pages Functions (functions/api/) from
+  // this exact same domain, so requests are always same-origin — no CORS,
+  // no separate URL to configure.
   const API_BASE_URL = "";
   const POINTS_PER_DOLLAR = 10;
 
@@ -122,7 +122,7 @@
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
-  // ---------- Cloud sync (Cloudflare Worker + D1) ----------
+  // ---------- Cloud sync (Cloudflare Pages Functions + D1) ----------
   async function api(path, options = {}) {
     const res = await fetch(`${API_BASE_URL}${path}`, {
       credentials: "include",

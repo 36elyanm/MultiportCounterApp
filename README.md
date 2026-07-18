@@ -59,37 +59,22 @@ Every counter shows its count converted to a dollar amount at a fixed rate of **
 By default the app works exactly like a local-only app: counters are saved in the browser's `localStorage` and never leave your device. Signing in is optional and adds cross-device sync:
 
 - **Sign Up / Sign In** from Settings → Account.
-- Once signed in, every change (add, edit, delete, count, reset) is synced to a **Cloudflare D1** database through a small **Cloudflare Worker** API.
+- Once signed in, every change (add, edit, delete, count, reset) is synced to a **Cloudflare D1** database through **Cloudflare Pages Functions** — server-side API routes that deploy as part of this same Pages project, on the same domain as the static site. No separate service, no CORS to configure.
 - Signing up while you already have local counters adopts them as your first cloud save; signing into an existing account pulls down whatever was saved there.
 - Signing out returns to local-only mode; your last-synced data stays cached in `localStorage`.
 
 ### Deploying the backend
 
-The API lives in `worker/` and is intentionally separate from the static frontend — you deploy it once with your own Cloudflare account, then point the frontend at it.
+The API lives in `functions/api/` (file-based routing — `functions/api/signup.js` becomes `POST /api/signup`, `functions/api/counters/[id].js` becomes `/api/counters/:id`, etc.) and `functions/_lib/auth.js` holds the shared password-hashing/session helpers. Everything here is entirely dashboard-driven — no CLI required:
 
-```bash
-cd worker
-npm install
+1. **Create the D1 database** — [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **D1** → **Create Database** → name it `multiport-counter-db`.
+2. **Apply the schema** — open that database → **Console** tab → paste in the contents of `schema.sql` (repo root) → run it. Creates the `users`, `sessions`, and `counters` tables.
+3. **Bind the database to this Pages project** — your Pages project → **Settings** → **Functions** → **D1 database bindings** → **Add binding** → variable name `DB` → select `multiport-counter-db`. Do this for both the **Production** and **Preview** environments if you want it working on preview deploys too.
+4. **Redeploy** — push to the connected branch (or retrigger a deployment) so Pages picks up the `functions/` directory and the new binding.
 
-# 1. Create the D1 database (prints a database_id — paste it into wrangler.toml)
-npx wrangler d1 create multiport-counter-db
+That's it — no `API_BASE_URL` to set (it's `""`, i.e. same-origin, in `js/app.js`) and nothing to keep in sync between a separate API domain and the frontend.
 
-# 2. Apply the schema
-npx wrangler d1 execute multiport-counter-db --remote --file=./schema.sql
-
-# 3. List every frontend origin allowed to call this API with cookies —
-#    edit ALLOWED_ORIGINS in wrangler.toml (comma-separated; CORS with
-#    credentials needs an exact match per origin, no wildcards). Keep both
-#    the Pages URL and a future custom domain listed side by side during
-#    a migration — the Worker echoes back whichever one matches.
-
-# 4. Deploy
-npx wrangler deploy
-```
-
-Then in `js/app.js`, set `API_BASE_URL` to the Worker's URL (e.g. `https://multiport-counter-api.<your-subdomain>.workers.dev`) — or leave it as `""` if you serve the frontend from the same domain as the Worker.
-
-`worker/schema.sql` defines three tables: `users` (email + salted/hashed password via PBKDF2), `sessions` (random tokens, 30-day expiry, set as an `HttpOnly`/`Secure` cookie), and `counters` (one row per counter, scoped to `user_id`).
+`schema.sql` defines three tables: `users` (email + salted/hashed password via PBKDF2), `sessions` (random tokens, 30-day expiry, set as an `HttpOnly`/`Secure` cookie), and `counters` (one row per counter, scoped to `user_id`).
 
 ## Getting Started
 
@@ -117,6 +102,7 @@ It will launch full-screen, like a native app.
 MultiportCounterApp/
 ├── index.html          # App markup
 ├── manifest.json       # Web app manifest (installable/PWA metadata)
+├── schema.sql           # D1 schema — run once via the D1 dashboard console
 ├── css/
 │   └── style.css       # Apple-style UI, light/dark themes
 ├── js/
@@ -126,19 +112,23 @@ MultiportCounterApp/
 │   └── fonts/
 │       ├── Inter-latin.woff2  # Self-hosted fallback font
 │       └── OFL.txt            # Inter's SIL Open Font License
-├── worker/              # Cloudflare Worker + D1 API (optional backend)
-│   ├── wrangler.toml
-│   ├── schema.sql
-│   ├── package.json
-│   └── src/
-│       ├── index.js     # Routes: signup/login/logout/me/counters CRUD
-│       └── auth.js      # Password hashing (PBKDF2) and session helpers
+├── functions/            # Cloudflare Pages Functions (optional backend)
+│   ├── _lib/
+│   │   └── auth.js       # Password hashing (PBKDF2) and session helpers
+│   └── api/
+│       ├── signup.js     # POST /api/signup
+│       ├── login.js      # POST /api/login
+│       ├── logout.js     # POST /api/logout
+│       ├── me.js         # GET /api/me
+│       ├── counters.js   # GET/PUT/DELETE /api/counters
+│       └── counters/
+│           └── [id].js   # PATCH/DELETE /api/counters/:id
 └── README.md
 ```
 
 ## Tech Stack
 
-Frontend: plain HTML, CSS, and vanilla JavaScript — no frameworks, no build tools. Counters are always persisted locally with `localStorage`, and optionally synced to a Cloudflare D1 database through a Cloudflare Worker API when signed in (see [Accounts & Cloud Sync](#accounts--cloud-sync)).
+Frontend: plain HTML, CSS, and vanilla JavaScript — no frameworks, no build tools. Counters are always persisted locally with `localStorage`, and optionally synced to a Cloudflare D1 database through Cloudflare Pages Functions when signed in (see [Accounts & Cloud Sync](#accounts--cloud-sync)).
 
 ## License
 
