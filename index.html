@@ -100,6 +100,18 @@
       <div class="sheet-grabber"></div>
       <h3 class="sheet-title">Settings</h3>
 
+      <label class="field-label">Account</label>
+      <div id="accountSignedOut" class="account-box">
+        <p class="account-hint">Sign in to save your counters to the cloud and sync across devices.</p>
+        <button id="openAuthBtn" class="sheet-action-btn">Sign In / Create Account</button>
+      </div>
+      <div id="accountSignedIn" class="account-box" style="display:none;">
+        <div class="account-row">
+          <span id="accountEmail" class="account-email"></span>
+          <button id="logoutBtn" class="account-logout-btn">Log Out</button>
+        </div>
+      </div>
+
       <label class="field-label">Accent Color</label>
       <div class="color-picker" id="accentPicker"></div>
 
@@ -120,6 +132,14 @@
           <span class="switch-track"><span class="switch-thumb"></span></span>
         </label>
       </div>
+      <div class="settings-row">
+        <span>Show Dollar Value</span>
+        <label class="switch">
+          <input type="checkbox" id="currencyToggle" checked />
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+        </label>
+      </div>
+      <p class="settings-note">10 points = $1.00</p>
 
       <button id="resetAllBtn" class="sheet-action-btn">Reset All Counts</button>
       <button id="deleteAllBtn" class="sheet-action-btn destructive">Delete All Counters</button>
@@ -131,6 +151,23 @@
       </div>
 
       <button id="closeSettingsBtn" class="sheet-cancel-btn">Done</button>
+    </div>
+  </div>
+
+  <!-- Auth Sheet -->
+  <div id="authOverlay" class="sheet-overlay">
+    <div class="sheet">
+      <div class="sheet-grabber"></div>
+      <h3 id="authTitle" class="sheet-title">Sign In</h3>
+
+      <p id="authError" class="auth-error" style="display:none;"></p>
+
+      <input id="authEmailInput" class="text-field" type="email" placeholder="Email" autocomplete="email" />
+      <input id="authPasswordInput" class="text-field" type="password" placeholder="Password" autocomplete="current-password" />
+
+      <button id="authSubmitBtn" class="sheet-save-btn">Sign In</button>
+      <button id="authToggleModeBtn" class="sheet-action-btn">Need an account? Sign Up</button>
+      <button id="closeAuthBtn" class="sheet-cancel-btn">Cancel</button>
     </div>
   </div>
 

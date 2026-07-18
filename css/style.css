@@ -815,3 +815,62 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
 .about-name { font-size: 15px; font-weight: 600; margin: 0; }
 .about-version { font-size: 13px; color: var(--text-secondary); margin: 2px 0; }
 .about-credit { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+/* ---------- Account / Auth ---------- */
+.account-box { margin-bottom: 22px; }
+.account-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border-soft);
+  background: var(--glass-control-bg);
+  -webkit-backdrop-filter: blur(var(--glass-control-blur));
+  backdrop-filter: blur(var(--glass-control-blur));
+}
+.account-email {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-logout-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--red);
+  font-family: var(--font-system);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.settings-note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: -10px 0 16px;
+}
+
+.auth-error {
+  font-size: 13px;
+  color: var(--red);
+  text-align: center;
+  margin: -6px 0 14px;
+}
+
+/* ---------- Currency (points-to-dollar display) ---------- */
+.counter-currency {
+  color: var(--text-secondary);
+}
+.counter-currency::before {
+  content: " · ";
+}

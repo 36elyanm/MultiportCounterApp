@@ -6,6 +6,13 @@
   const ACCENT_KEY = "multiport-counter.accent";
   const WALLPAPER_KEY = "multiport-counter.wallpaper";
   const REDUCE_TRANSPARENCY_KEY = "multiport-counter.reduceTransparency";
+  const CURRENCY_KEY = "multiport-counter.showCurrency";
+
+  // Cloudflare Worker API base URL. Empty string means "same origin as
+  // this page" (useful if the frontend is served from the same domain
+  // as the Worker). Set this to your deployed Worker URL otherwise.
+  const API_BASE_URL = "";
+  const POINTS_PER_DOLLAR = 10;
 
   const COLORS = [
     { name: "blue", value: "#007AFF" },
@@ -53,9 +60,25 @@
   const wallpaperPicker = el("wallpaperPicker");
   const hapticsToggle = el("hapticsToggle");
   const reduceTransparencyToggle = el("reduceTransparencyToggle");
+  const currencyToggle = el("currencyToggle");
   const resetAllBtn = el("resetAllBtn");
   const deleteAllBtn = el("deleteAllBtn");
   const closeSettingsBtn = el("closeSettingsBtn");
+
+  const accountSignedOut = el("accountSignedOut");
+  const accountSignedIn = el("accountSignedIn");
+  const accountEmail = el("accountEmail");
+  const openAuthBtn = el("openAuthBtn");
+  const logoutBtn = el("logoutBtn");
+
+  const authOverlay = el("authOverlay");
+  const authTitle = el("authTitle");
+  const authError = el("authError");
+  const authEmailInput = el("authEmailInput");
+  const authPasswordInput = el("authPasswordInput");
+  const authSubmitBtn = el("authSubmitBtn");
+  const authToggleModeBtn = el("authToggleModeBtn");
+  const closeAuthBtn = el("closeAuthBtn");
 
   let state = {
     counters: [],
@@ -68,6 +91,10 @@
   let sheetIcon = null;
 
   let hapticsEnabled = true;
+  let showCurrency = true;
+  let currentUser = null;
+  let authMode = "login"; // "login" | "signup"
+  let syncTimer = null;
 
   // ---------- Persistence ----------
   function load() {
@@ -82,6 +109,7 @@
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.counters));
+    scheduleSync();
   }
 
   function haptic(strength = 10) {
@@ -92,6 +120,113 @@
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // ---------- Cloud sync (Cloudflare Worker + D1) ----------
+  async function api(path, options = {}) {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (e) {
+      data = null;
+    }
+    if (!res.ok) {
+      throw new Error((data && data.error) || `Request failed (${res.status})`);
+    }
+    return data;
+  }
+
+  function setSignedInUI(user) {
+    currentUser = user;
+    if (user) {
+      accountSignedOut.style.display = "none";
+      accountSignedIn.style.display = "block";
+      accountEmail.textContent = user.email;
+    } else {
+      accountSignedOut.style.display = "block";
+      accountSignedIn.style.display = "none";
+    }
+  }
+
+  async function checkSession() {
+    try {
+      const data = await api("/api/me");
+      if (data.user) {
+        setSignedInUI(data.user);
+        await pullCountersFromServer();
+      }
+    } catch (e) {
+      // Not signed in, or API unreachable — fall back to local-only mode.
+    }
+  }
+
+  async function pullCountersFromServer() {
+    try {
+      const data = await api("/api/counters");
+      if (data.counters && data.counters.length > 0) {
+        state.counters = data.counters.map((c) => ({
+          id: c.id,
+          name: c.name,
+          count: c.count,
+          step: c.step,
+          color: c.color,
+          icon: c.icon || null,
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.counters));
+        render();
+      } else if (state.counters.length > 0) {
+        // New account with existing local (guest) counters — adopt them as the initial cloud data.
+        await pushCountersToServer();
+      }
+    } catch (e) {
+      // Leave local data as-is if the server is unreachable.
+    }
+  }
+
+  function pushCountersToServer() {
+    if (!currentUser) return Promise.resolve();
+    return api("/api/counters", {
+      method: "PUT",
+      body: JSON.stringify({ counters: state.counters }),
+    }).catch(() => {
+      // Best-effort sync; local data (and localStorage) remains the source of truth offline.
+    });
+  }
+
+  function scheduleSync() {
+    if (!currentUser) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(pushCountersToServer, 400);
+  }
+
+  async function signup(email, password) {
+    const data = await api("/api/signup", { method: "POST", body: JSON.stringify({ email, password }) });
+    setSignedInUI(data.user);
+    await pullCountersFromServer();
+  }
+
+  async function login(email, password) {
+    const data = await api("/api/login", { method: "POST", body: JSON.stringify({ email, password }) });
+    setSignedInUI(data.user);
+    await pullCountersFromServer();
+  }
+
+  async function logout() {
+    try {
+      await api("/api/logout", { method: "POST" });
+    } catch (e) {
+      // Clear the local UI state regardless of network errors.
+    }
+    setSignedInUI(null);
+  }
+
+  function formatCurrency(count) {
+    return `$${(count / POINTS_PER_DOLLAR).toFixed(2)}`;
   }
 
   // ---------- Appearance (accent / wallpaper / transparency) ----------
@@ -219,6 +354,13 @@
     const stepEl = document.createElement("div");
     stepEl.className = "counter-step";
     stepEl.textContent = `Step ${counter.step}`;
+    let currencyEl = null;
+    if (showCurrency) {
+      currencyEl = document.createElement("span");
+      currencyEl.className = "counter-currency";
+      currencyEl.textContent = formatCurrency(counter.count);
+      stepEl.appendChild(currencyEl);
+    }
     info.appendChild(nameEl);
     info.appendChild(stepEl);
 
@@ -246,13 +388,13 @@
     minusBtn.className = "stepper-btn minus";
     minusBtn.textContent = "−";
     minusBtn.setAttribute("aria-label", `Decrease ${counter.name}`);
-    minusBtn.addEventListener("click", () => bump(counter, -counter.step, countEl));
+    minusBtn.addEventListener("click", () => bump(counter, -counter.step, countEl, currencyEl));
 
     const plusBtn = document.createElement("button");
     plusBtn.className = "stepper-btn plus";
     plusBtn.textContent = "+";
     plusBtn.setAttribute("aria-label", `Increase ${counter.name}`);
-    plusBtn.addEventListener("click", () => bump(counter, counter.step, countEl));
+    plusBtn.addEventListener("click", () => bump(counter, counter.step, countEl, currencyEl));
 
     controls.appendChild(minusBtn);
     controls.appendChild(plusBtn);
@@ -275,7 +417,7 @@
     return card;
   }
 
-  function bump(counter, delta, countEl) {
+  function bump(counter, delta, countEl, currencyEl) {
     counter.count += delta;
     save();
     countEl.textContent = counter.count;
@@ -283,6 +425,7 @@
     countEl.classList.remove("pulse");
     void countEl.offsetWidth;
     countEl.classList.add("pulse");
+    if (currencyEl) currencyEl.textContent = formatCurrency(counter.count);
     haptic(8);
   }
 
@@ -501,6 +644,13 @@
     haptic(10);
   });
 
+  currencyToggle.addEventListener("change", () => {
+    showCurrency = currencyToggle.checked;
+    localStorage.setItem(CURRENCY_KEY, showCurrency ? "on" : "off");
+    haptic(10);
+    render();
+  });
+
   resetAllBtn.addEventListener("click", () => {
     state.counters.forEach((c) => (c.count = 0));
     save();
@@ -525,8 +675,70 @@
     });
   });
 
+  // ---------- Account / Auth ----------
+  function setAuthMode(mode) {
+    authMode = mode;
+    authError.style.display = "none";
+    if (mode === "signup") {
+      authTitle.textContent = "Create Account";
+      authSubmitBtn.textContent = "Create Account";
+      authToggleModeBtn.textContent = "Already have an account? Sign In";
+      authPasswordInput.setAttribute("autocomplete", "new-password");
+    } else {
+      authTitle.textContent = "Sign In";
+      authSubmitBtn.textContent = "Sign In";
+      authToggleModeBtn.textContent = "Need an account? Sign Up";
+      authPasswordInput.setAttribute("autocomplete", "current-password");
+    }
+  }
+
+  function openAuthSheet() {
+    setAuthMode("login");
+    authEmailInput.value = "";
+    authPasswordInput.value = "";
+    closeSheet(settingsOverlay);
+    openSheet(authOverlay);
+    setTimeout(() => authEmailInput.focus(), 300);
+  }
+
+  openAuthBtn.addEventListener("click", openAuthSheet);
+  closeAuthBtn.addEventListener("click", () => closeSheet(authOverlay));
+  authToggleModeBtn.addEventListener("click", () => setAuthMode(authMode === "login" ? "signup" : "login"));
+
+  authSubmitBtn.addEventListener("click", async () => {
+    const email = authEmailInput.value.trim();
+    const password = authPasswordInput.value;
+    if (!email || !password) {
+      authError.textContent = "Please enter an email and password.";
+      authError.style.display = "block";
+      return;
+    }
+    authSubmitBtn.disabled = true;
+    authError.style.display = "none";
+    try {
+      if (authMode === "signup") {
+        await signup(email, password);
+      } else {
+        await login(email, password);
+      }
+      haptic(12);
+      closeSheet(authOverlay);
+    } catch (err) {
+      authError.textContent = err.message || "Something went wrong.";
+      authError.style.display = "block";
+      haptic(20);
+    } finally {
+      authSubmitBtn.disabled = false;
+    }
+  });
+
+  logoutBtn.addEventListener("click", async () => {
+    await logout();
+    haptic(10);
+  });
+
   // ---------- Close sheets on backdrop tap ----------
-  [sheetOverlay, settingsOverlay].forEach((overlay) => {
+  [sheetOverlay, settingsOverlay, authOverlay].forEach((overlay) => {
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) closeSheet(overlay);
     });
@@ -535,6 +747,7 @@
   // ---------- Init ----------
   function init() {
     load();
+    showCurrency = localStorage.getItem(CURRENCY_KEY) !== "off";
 
     buildColorPicker();
     buildIconPicker();
@@ -546,7 +759,10 @@
     setReduceTransparency(localStorage.getItem(REDUCE_TRANSPARENCY_KEY) === "on", false);
 
     hapticsToggle.checked = hapticsEnabled;
+    currencyToggle.checked = showCurrency;
     render();
+
+    checkSession();
   }
 
   init();

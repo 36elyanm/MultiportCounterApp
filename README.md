@@ -19,6 +19,8 @@ A fast, minimal tally counter app, inspired by apps like **Tally** and **Mini Co
 - **Installable** — add it to your iPhone/iPad Home Screen (or desktop) for a full-screen, app-like experience.
 - **Responsive** — the app frame scales cleanly from small phones up through tablets and desktop browser windows; on wider screens it's centered as a phone-proportioned card instead of stretching edge to edge.
 - **Starts empty** — no sample counters; the first thing you see is the empty state, ready for your own.
+- **Points → dollars** — every counter shows a dollar value under its step size, at a fixed rate of **10 points = $1.00** (display only — no real money moves; see [Points-to-dollars](#points-to-dollars-display-only) below). Toggle it off in Settings if you don't want it.
+- **Accounts & cloud sync (optional)** — sign up or sign in to save your counters to a Cloudflare D1 database instead of just this browser's `localStorage`, so they follow you across devices. Using the app without an account works exactly as before (counters stay local to the browser).
 
 ## Customization
 
@@ -47,6 +49,44 @@ The UI is built around Apple's **Liquid Glass** material (introduced in iOS 26 /
 > **Note on fonts:** SF Pro is Apple's proprietary typeface, and Apple's license does not permit redistributing its font files outside Apple's own platforms. So this app can't legally ship actual SF Pro. Instead:
 > - On iOS, iPadOS, and macOS, `-apple-system` triggers the real, system-installed SF Pro automatically — no font file needed, since the OS already has it.
 > - On every other platform (Windows, Android, Linux), the app self-hosts **Inter** (`assets/fonts/Inter-latin.woff2`, SIL Open Font License — see `assets/fonts/OFL.txt`), a free, metrically similar typeface, so the app still looks like one consistent, SF-Pro-like design instead of falling back to whatever generic default font the OS/browser ships.
+
+## Points-to-dollars (display only)
+
+Every counter shows its count converted to a dollar amount at a fixed rate of **10 points = $1.00** (e.g. a count of 24 shows `$2.40`). This is purely a label computed in the browser — **no payment processor, payout, or real money is involved**. Turn it off with the "Show Dollar Value" toggle in Settings if you'd rather just see the raw count.
+
+## Accounts & Cloud Sync
+
+By default the app works exactly like a local-only app: counters are saved in the browser's `localStorage` and never leave your device. Signing in is optional and adds cross-device sync:
+
+- **Sign Up / Sign In** from Settings → Account.
+- Once signed in, every change (add, edit, delete, count, reset) is synced to a **Cloudflare D1** database through a small **Cloudflare Worker** API.
+- Signing up while you already have local counters adopts them as your first cloud save; signing into an existing account pulls down whatever was saved there.
+- Signing out returns to local-only mode; your last-synced data stays cached in `localStorage`.
+
+### Deploying the backend
+
+The API lives in `worker/` and is intentionally separate from the static frontend — you deploy it once with your own Cloudflare account, then point the frontend at it.
+
+```bash
+cd worker
+npm install
+
+# 1. Create the D1 database (prints a database_id — paste it into wrangler.toml)
+npx wrangler d1 create multiport-counter-db
+
+# 2. Apply the schema
+npx wrangler d1 execute multiport-counter-db --remote --file=./schema.sql
+
+# 3. Set the frontend's real origin (the page users load the app from) so
+#    cookie-based auth is accepted — edit ALLOWED_ORIGIN in wrangler.toml
+
+# 4. Deploy
+npx wrangler deploy
+```
+
+Then in `js/app.js`, set `API_BASE_URL` to the Worker's URL (e.g. `https://multiport-counter-api.<your-subdomain>.workers.dev`) — or leave it as `""` if you serve the frontend from the same domain as the Worker.
+
+`worker/schema.sql` defines three tables: `users` (email + salted/hashed password via PBKDF2), `sessions` (random tokens, 30-day expiry, set as an `HttpOnly`/`Secure` cookie), and `counters` (one row per counter, scoped to `user_id`).
 
 ## Getting Started
 
@@ -77,18 +117,25 @@ MultiportCounterApp/
 ├── css/
 │   └── style.css       # Apple-style UI, light/dark themes
 ├── js/
-│   └── app.js          # Counter logic, persistence, gestures
+│   └── app.js          # Counter logic, persistence, gestures, auth/sync
 ├── assets/
 │   ├── icon.svg          # App icon
 │   └── fonts/
 │       ├── Inter-latin.woff2  # Self-hosted fallback font
 │       └── OFL.txt            # Inter's SIL Open Font License
+├── worker/              # Cloudflare Worker + D1 API (optional backend)
+│   ├── wrangler.toml
+│   ├── schema.sql
+│   ├── package.json
+│   └── src/
+│       ├── index.js     # Routes: signup/login/logout/me/counters CRUD
+│       └── auth.js      # Password hashing (PBKDF2) and session helpers
 └── README.md
 ```
 
 ## Tech Stack
 
-Plain HTML, CSS, and vanilla JavaScript — no frameworks, no build tools, no external dependencies. Data is persisted with `localStorage`.
+Frontend: plain HTML, CSS, and vanilla JavaScript — no frameworks, no build tools. Counters are always persisted locally with `localStorage`, and optionally synced to a Cloudflare D1 database through a Cloudflare Worker API when signed in (see [Accounts & Cloud Sync](#accounts--cloud-sync)).
 
 ## License
 
