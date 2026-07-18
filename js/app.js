@@ -176,15 +176,16 @@
     counterList.innerHTML = "";
     emptyState.classList.toggle("visible", state.counters.length === 0);
 
-    state.counters.forEach((counter) => {
-      counterList.appendChild(buildCounterCard(counter));
+    state.counters.forEach((counter, index) => {
+      counterList.appendChild(buildCounterCard(counter, index));
     });
   }
 
-  function buildCounterCard(counter) {
+  function buildCounterCard(counter, index) {
     const card = document.createElement("div");
     card.className = "counter-card";
     card.dataset.id = counter.id;
+    card.style.setProperty("--card-index", index);
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "counter-swipe-delete";
@@ -531,21 +532,9 @@
     });
   });
 
-  // ---------- Seed data for first run ----------
-  function seedIfEmpty() {
-    if (state.counters.length > 0) return;
-    if (localStorage.getItem(STORAGE_KEY) !== null) return; // user cleared intentionally
-    state.counters = [
-      { id: uid(), name: "Reps", count: 0, step: 1, color: COLORS[0].value, icon: "💪" },
-      { id: uid(), name: "Water", count: 0, step: 1, color: COLORS[7].value, icon: "💧" },
-    ];
-    save();
-  }
-
   // ---------- Init ----------
   function init() {
     load();
-    seedIfEmpty();
 
     buildColorPicker();
     buildIconPicker();

@@ -51,6 +51,10 @@
   --sheet-bg: rgba(255, 255, 255, 0.72);
 
   --page-bg: #D8D8DE;
+
+  /* Fine grain, layered onto glass surfaces so they read as frosted
+     material rather than a flat blurred rectangle. */
+  --grain: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -114,6 +118,51 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   isolation: isolate;
 }
 
+/* Floating blurred color blobs behind the glass — gives the wallpaper
+   depth and movement instead of a flat static gradient, so the glass
+   panels have something rich to refract. */
+.bg-orbs {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+}
+.bg-orb.orb1 {
+  width: 60vw; max-width: 300px; height: 60vw; max-height: 300px;
+  top: -8%; left: -15%;
+  background: color-mix(in srgb, var(--accent) 75%, transparent);
+  animation: orbDrift1 24s ease-in-out infinite alternate;
+}
+.bg-orb.orb2 {
+  width: 55vw; max-width: 260px; height: 55vw; max-height: 260px;
+  bottom: 12%; right: -18%;
+  background: rgba(255, 255, 255, 0.5);
+  animation: orbDrift2 28s ease-in-out infinite alternate;
+}
+.bg-orb.orb3 {
+  width: 50vw; max-width: 240px; height: 50vw; max-height: 240px;
+  bottom: -10%; left: 18%;
+  background: color-mix(in srgb, var(--accent) 40%, white 25%);
+  animation: orbDrift3 32s ease-in-out infinite alternate;
+}
+@media (prefers-color-scheme: dark) {
+  .bg-orb.orb2 { background: rgba(255, 255, 255, 0.14); }
+  .bg-orb.orb3 { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+}
+@keyframes orbDrift1 { from { transform: translate(0, 0) scale(1); } to { transform: translate(6%, 8%) scale(1.12); } }
+@keyframes orbDrift2 { from { transform: translate(0, 0) scale(1); } to { transform: translate(-8%, -6%) scale(1.08); } }
+@keyframes orbDrift3 { from { transform: translate(0, 0) scale(1); } to { transform: translate(5%, -10%) scale(1.15); } }
+@media (prefers-reduced-motion: reduce) {
+  .bg-orb { animation: none; }
+}
+
 .app-scroll {
   height: 100%;
   overflow-y: auto;
@@ -165,12 +214,34 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
 }
 
 .navbar-pill {
+  position: relative;
+  overflow: hidden;
   background: var(--glass-panel-bg);
   -webkit-backdrop-filter: saturate(180%) blur(var(--glass-panel-blur));
   backdrop-filter: saturate(180%) blur(var(--glass-panel-blur));
   border: 1px solid var(--glass-border);
   border-radius: 22px;
   box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* Fine grain overlay: makes the glass read as frosted material, not a
+   flat blurred rectangle. Skipped entirely in Reduce Transparency. */
+.navbar-pill::after,
+.counter-card::after,
+.fab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  border-radius: inherit;
+}
+#app.no-glass .navbar-pill::after,
+#app.no-glass .counter-card::after,
+#app.no-glass .fab::after {
+  display: none;
 }
 
 .navbar-inner {
@@ -187,11 +258,25 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   margin: 0;
 }
 
+.large-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 20px 12px 8px;
+}
+
+.brand-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
 .navbar-large-title {
   font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  margin: 14px 20px 12px 8px;
+  margin: 0;
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.06);
 }
 
@@ -229,6 +314,18 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   transform: translateX(0);
   transition: transform 0.25s cubic-bezier(.25,.9,.35,1);
   touch-action: pan-y;
+  animation: cardIn 0.35s ease backwards;
+  animation-delay: calc(var(--card-index, 0) * 45ms);
+}
+
+/* Opacity-only: a transform here (translate/scale) fights the sticky
+   nav bar's layout in Chromium and can leave it stuck off-screen. */
+@keyframes cardIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .counter-card { animation: none; }
 }
 
 .counter-card.swiped { transform: translateX(-88px); }
@@ -364,10 +461,24 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   color: var(--text-secondary);
 }
 .empty-state.visible { display: flex; }
+.empty-icon-badge {
+  width: 84px;
+  height: 84px;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  background: color-mix(in srgb, var(--accent) 20%, var(--glass-control-bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  -webkit-backdrop-filter: blur(var(--glass-control-blur));
+  backdrop-filter: blur(var(--glass-control-blur));
+  box-shadow: 0 8px 24px -6px rgba(var(--accent-rgb), 0.35), inset 0 1px 0 var(--glass-highlight);
+}
 .empty-icon {
-  font-size: 40px;
+  font-size: 34px;
   color: var(--accent);
-  margin-bottom: 8px;
+  line-height: 1;
 }
 .empty-title {
   font-size: 19px;
@@ -380,6 +491,7 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
 /* ---------- FAB (glass orb with specular highlight) ---------- */
 .fab {
   position: absolute;
+  overflow: hidden;
   right: 24px;
   bottom: calc(28px + env(safe-area-inset-bottom));
   width: 58px;
@@ -399,9 +511,18 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   cursor: pointer;
   transition: transform 0.12s ease;
   z-index: 20;
+  animation: fabGlow 3.5s ease-in-out infinite;
 }
 .fab:active { transform: scale(0.9); }
-.fab .icon { width: 26px; height: 26px; }
+.fab .icon { width: 26px; height: 26px; position: relative; z-index: 1; }
+
+@keyframes fabGlow {
+  0%, 100% { box-shadow: 0 10px 28px -4px rgba(var(--accent-rgb), 0.55), inset 0 1px 1px rgba(255,255,255,0.6); }
+  50% { box-shadow: 0 10px 34px -2px rgba(var(--accent-rgb), 0.8), inset 0 1px 1px rgba(255,255,255,0.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab { animation: none; }
+}
 
 .footer-credit {
   text-align: center;

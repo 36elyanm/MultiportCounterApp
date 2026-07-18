@@ -24,6 +24,13 @@
 <div class="app-shell">
 <div id="app">
 
+  <!-- Decorative floating glass orbs, give the wallpaper depth to refract -->
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="bg-orb orb1"></span>
+    <span class="bg-orb orb2"></span>
+    <span class="bg-orb orb3"></span>
+  </div>
+
   <div class="app-scroll">
     <!-- Nav Bar -->
     <header class="navbar">
@@ -36,7 +43,10 @@
           </button>
         </div>
       </div>
-      <h2 class="navbar-large-title">Counters</h2>
+      <div class="large-title-row">
+        <img src="assets/icon.svg" class="brand-icon" alt="" />
+        <h2 class="navbar-large-title">Counters</h2>
+      </div>
     </header>
 
     <!-- Counter List -->
@@ -44,7 +54,7 @@
 
     <!-- Empty state -->
     <div id="emptyState" class="empty-state">
-      <div class="empty-icon">＋</div>
+      <div class="empty-icon-badge"><span class="empty-icon">＋</span></div>
       <p class="empty-title">No Counters Yet</p>
       <p class="empty-sub">Tap the button below to add your first tally.</p>
     </div>

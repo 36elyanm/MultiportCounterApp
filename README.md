@@ -18,6 +18,7 @@ A fast, minimal tally counter app, inspired by apps like **Tally** and **Mini Co
 - **Light & Dark Mode** — automatically follows your system appearance.
 - **Installable** — add it to your iPhone/iPad Home Screen (or desktop) for a full-screen, app-like experience.
 - **Responsive** — the app frame scales cleanly from small phones up through tablets and desktop browser windows; on wider screens it's centered as a phone-proportioned card instead of stretching edge to edge.
+- **Starts empty** — no sample counters; the first thing you see is the empty state, ready for your own.
 
 ## Customization
 
@@ -36,7 +37,10 @@ The UI is built around Apple's **Liquid Glass** material (introduced in iOS 26 /
 - Floating, pill-shaped nav bar and glass bottom sheets with a grabber handle, rather than flat opaque bars
 - Every surface — nav bar, counter cards, buttons, sheets — is real frosted glass (`backdrop-filter: blur() saturate()`), with a soft inner highlight simulating a specular reflection along the top edge
 - A colorful, customizable wallpaper sits behind the whole app so the glass has depth and color to refract, just like on-device Liquid Glass
-- The floating "+" button reads as a glass orb with its own specular highlight rather than a flat colored circle
+- The floating "+" button reads as a glass orb with its own specular highlight and a slow idle glow, rather than a flat colored circle
+- Three soft, slowly-drifting color blobs sit behind the app so the glass always has something colorful to refract, even on the plain "Mono" wallpaper
+- A fine grain texture is layered onto the nav bar, cards, and FAB so the glass reads as frosted material rather than a flat blurred rectangle
+- Counter cards fade in with a subtle staggered entrance when the list changes
 - System color palette (blue, red, green, orange, yellow, purple, pink, teal, indigo) for both the customizable accent and per-counter colors
 - Font stack: `-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", ...`
 
