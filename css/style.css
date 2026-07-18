@@ -1,11 +1,22 @@
 /* Multiport Counter — Apple-style UI
-   Font stack references the system SF Pro font on Apple devices
-   (Apple does not license SF Pro for redistribution, so it is never
-   bundled here — see README for details). */
+   -apple-system renders real SF Pro on Apple devices. Apple does not
+   license SF Pro for redistribution, so on every other platform this
+   falls back to the self-hosted Inter variable font (SIL OFL, see
+   assets/fonts/OFL.txt) — metrically close to SF Pro so the app still
+   reads as one consistent typeface everywhere. */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/fonts/Inter-latin.woff2") format("woff2-variations"),
+       url("../assets/fonts/Inter-latin.woff2") format("woff2");
+}
 
 :root {
   --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    "Helvetica Neue", Helvetica, Arial, sans-serif;
+    "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   --blue: #007AFF;
   --red: #FF3B30;
@@ -27,6 +38,7 @@
   --sheet-bg: #FFFFFF;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --fab-shadow: 0 8px 20px rgba(0, 122, 255, 0.35);
+  --page-bg: #D8D8DE;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +52,7 @@
     --navbar-bg: rgba(0, 0, 0, 0.78);
     --sheet-bg: #1C1C1E;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --page-bg: #000000;
   }
 }
 
@@ -48,16 +61,51 @@
 html, body {
   height: 100%;
   margin: 0;
-  background: var(--bg);
+  background: var(--page-bg);
   color: var(--text-primary);
   font-family: var(--font-system);
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
 }
 
+/* .app-shell centers the app on any viewport width: edge-to-edge on
+   phones, a centered fixed-width card on tablets/desktops, so resizing
+   the browser window never stretches the layout awkwardly. */
+.app-shell {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 #app {
-  min-height: 100%;
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.app-scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 560px) {
+  .app-shell { align-items: center; padding: 32px 16px; box-sizing: border-box; }
+  #app {
+    height: min(844px, calc(100vh - 64px));
+    height: min(844px, calc(100dvh - 64px));
+    border-radius: 32px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
 }
 
 /* ---------- Nav Bar ---------- */
@@ -245,7 +293,7 @@ html, body {
 
 /* ---------- FAB ---------- */
 .fab {
-  position: fixed;
+  position: absolute;
   right: 20px;
   bottom: calc(24px + env(safe-area-inset-bottom));
   width: 58px;
@@ -275,7 +323,7 @@ html, body {
 
 /* ---------- Sheets (modal bottom sheets) ---------- */
 .sheet-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   z-index: 100;
