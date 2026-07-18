@@ -10,26 +10,44 @@ import {
   clearedSessionCookie,
 } from "./auth.js";
 
-function corsHeaders(env) {
-  return {
-    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN,
+// ALLOWED_ORIGINS is a comma-separated list (e.g. the Pages preview URL
+// and a future custom domain, side by side while migrating). CORS with
+// credentials requires echoing back one exact matching origin — it
+// can't be a wildcard — so we check the request's Origin against the
+// list rather than hard-coding a single value.
+function resolveOrigin(request, env) {
+  const allowed = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const origin = request.headers.get("Origin");
+  if (origin && allowed.includes(origin)) return origin;
+  return null;
+}
+
+function corsHeaders(request, env) {
+  const origin = resolveOrigin(request, env);
+  const headers = {
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
   };
+  if (origin) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
 }
 
-function json(data, status, env) {
+function json(data, status, request, env) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders(env) },
+    headers: { "Content-Type": "application/json", ...corsHeaders(request, env) },
   });
 }
 
-function jsonWithCookie(data, status, env, cookie) {
+function jsonWithCookie(data, status, request, env, cookie) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", "Set-Cookie": cookie, ...corsHeaders(env) },
+    headers: { "Content-Type": "application/json", "Set-Cookie": cookie, ...corsHeaders(request, env) },
   });
 }
 
@@ -45,13 +63,13 @@ async function requireUser(request, env) {
 async function handleSignup(request, env) {
   const body = await request.json().catch(() => null);
   if (!body || !isValidEmail(body.email) || typeof body.password !== "string" || body.password.length < 8) {
-    return json({ error: "Provide a valid email and a password of at least 8 characters." }, 400, env);
+    return json({ error: "Provide a valid email and a password of at least 8 characters." }, 400, request, env);
   }
   const email = body.email.trim().toLowerCase();
 
   const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
   if (existing) {
-    return json({ error: "An account with that email already exists." }, 409, env);
+    return json({ error: "An account with that email already exists." }, 409, request, env);
   }
 
   const { hash, salt } = await hashPassword(body.password);
@@ -63,13 +81,19 @@ async function handleSignup(request, env) {
     .run();
 
   const { token } = await createSession(env.DB, userId);
-  return jsonWithCookie({ user: { id: userId, email } }, 201, env, sessionCookie(token, 30 * 24 * 60 * 60));
+  return jsonWithCookie(
+    { user: { id: userId, email } },
+    201,
+    request,
+    env,
+    sessionCookie(token, 30 * 24 * 60 * 60)
+  );
 }
 
 async function handleLogin(request, env) {
   const body = await request.json().catch(() => null);
   if (!body || !isValidEmail(body.email) || typeof body.password !== "string") {
-    return json({ error: "Provide an email and password." }, 400, env);
+    return json({ error: "Provide an email and password." }, 400, request, env);
   }
   const email = body.email.trim().toLowerCase();
 
@@ -79,48 +103,54 @@ async function handleLogin(request, env) {
     .bind(email)
     .first();
   if (!user) {
-    return json({ error: "Incorrect email or password." }, 401, env);
+    return json({ error: "Incorrect email or password." }, 401, request, env);
   }
   const valid = await verifyPassword(body.password, user.password_salt, user.password_hash);
   if (!valid) {
-    return json({ error: "Incorrect email or password." }, 401, env);
+    return json({ error: "Incorrect email or password." }, 401, request, env);
   }
 
   const { token } = await createSession(env.DB, user.id);
-  return jsonWithCookie({ user: { id: user.id, email: user.email } }, 200, env, sessionCookie(token, 30 * 24 * 60 * 60));
+  return jsonWithCookie(
+    { user: { id: user.id, email: user.email } },
+    200,
+    request,
+    env,
+    sessionCookie(token, 30 * 24 * 60 * 60)
+  );
 }
 
 async function handleLogout(request, env) {
   const cookies = parseCookies(request);
   await deleteSession(env.DB, cookies.session);
-  return jsonWithCookie({ ok: true }, 200, env, clearedSessionCookie());
+  return jsonWithCookie({ ok: true }, 200, request, env, clearedSessionCookie());
 }
 
 async function handleMe(request, env) {
   const user = await requireUser(request, env);
-  if (!user) return json({ user: null }, 200, env);
-  return json({ user }, 200, env);
+  if (!user) return json({ user: null }, 200, request, env);
+  return json({ user }, 200, request, env);
 }
 
 async function handleListCounters(request, env) {
   const user = await requireUser(request, env);
-  if (!user) return json({ error: "Not signed in." }, 401, env);
+  if (!user) return json({ error: "Not signed in." }, 401, request, env);
 
   const { results } = await env.DB.prepare(
     "SELECT id, name, count, step, color, icon, sort_order FROM counters WHERE user_id = ? ORDER BY sort_order ASC, created_at ASC"
   )
     .bind(user.id)
     .all();
-  return json({ counters: results }, 200, env);
+  return json({ counters: results }, 200, request, env);
 }
 
 async function handleReplaceCounters(request, env) {
   const user = await requireUser(request, env);
-  if (!user) return json({ error: "Not signed in." }, 401, env);
+  if (!user) return json({ error: "Not signed in." }, 401, request, env);
 
   const body = await request.json().catch(() => null);
   if (!body || !Array.isArray(body.counters)) {
-    return json({ error: "Expected { counters: [...] }." }, 400, env);
+    return json({ error: "Expected { counters: [...] }." }, 400, request, env);
   }
 
   const now = Date.now();
@@ -145,20 +175,20 @@ async function handleReplaceCounters(request, env) {
   });
   await env.DB.batch(statements);
 
-  return json({ ok: true }, 200, env);
+  return json({ ok: true }, 200, request, env);
 }
 
 async function handleUpdateCounter(request, env, id) {
   const user = await requireUser(request, env);
-  if (!user) return json({ error: "Not signed in." }, 401, env);
+  if (!user) return json({ error: "Not signed in." }, 401, request, env);
 
   const body = await request.json().catch(() => null);
-  if (!body) return json({ error: "Invalid body." }, 400, env);
+  if (!body) return json({ error: "Invalid body." }, 400, request, env);
 
   const existing = await env.DB.prepare("SELECT id FROM counters WHERE id = ? AND user_id = ?")
     .bind(id, user.id)
     .first();
-  if (!existing) return json({ error: "Counter not found." }, 404, env);
+  if (!existing) return json({ error: "Counter not found." }, 404, request, env);
 
   const fields = [];
   const values = [];
@@ -174,7 +204,7 @@ async function handleUpdateCounter(request, env, id) {
       values.push(body[key]);
     }
   }
-  if (fields.length === 0) return json({ error: "Nothing to update." }, 400, env);
+  if (fields.length === 0) return json({ error: "Nothing to update." }, 400, request, env);
 
   fields.push("updated_at = ?");
   values.push(Date.now(), id, user.id);
@@ -183,23 +213,23 @@ async function handleUpdateCounter(request, env, id) {
     .bind(...values)
     .run();
 
-  return json({ ok: true }, 200, env);
+  return json({ ok: true }, 200, request, env);
 }
 
 async function handleDeleteCounter(request, env, id) {
   const user = await requireUser(request, env);
-  if (!user) return json({ error: "Not signed in." }, 401, env);
+  if (!user) return json({ error: "Not signed in." }, 401, request, env);
 
   await env.DB.prepare("DELETE FROM counters WHERE id = ? AND user_id = ?").bind(id, user.id).run();
-  return json({ ok: true }, 200, env);
+  return json({ ok: true }, 200, request, env);
 }
 
 async function handleDeleteAllCounters(request, env) {
   const user = await requireUser(request, env);
-  if (!user) return json({ error: "Not signed in." }, 401, env);
+  if (!user) return json({ error: "Not signed in." }, 401, request, env);
 
   await env.DB.prepare("DELETE FROM counters WHERE user_id = ?").bind(user.id).run();
-  return json({ ok: true }, 200, env);
+  return json({ ok: true }, 200, request, env);
 }
 
 export default {
@@ -208,7 +238,7 @@ export default {
     const { pathname } = url;
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(env) });
+      return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
 
     try {
@@ -225,9 +255,9 @@ export default {
       if (counterMatch && request.method === "PATCH") return await handleUpdateCounter(request, env, counterMatch[1]);
       if (counterMatch && request.method === "DELETE") return await handleDeleteCounter(request, env, counterMatch[1]);
 
-      return json({ error: "Not found." }, 404, env);
+      return json({ error: "Not found." }, 404, request, env);
     } catch (err) {
-      return json({ error: "Internal error.", detail: String(err) }, 500, env);
+      return json({ error: "Internal error.", detail: String(err) }, 500, request, env);
     }
   },
 };

@@ -10,6 +10,9 @@ database_name = "multiport-counter-db"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 [vars]
-# Frontend origin allowed to call this API with credentials (cookies).
-# Wildcard "*" cannot be used together with credentialed requests.
-ALLOWED_ORIGIN = "http://localhost:8080"
+# Comma-separated list of frontend origins allowed to call this API with
+# credentials (cookies). Wildcard "*" cannot be used together with
+# credentialed requests, so every real origin that will use this API
+# needs to be listed explicitly — including both the Pages URL and the
+# eventual custom domain, side by side during the migration.
+ALLOWED_ORIGINS = "https://multiportcounterapp.pages.dev,https://counterapp.multiportllc.com,http://localhost:8080"

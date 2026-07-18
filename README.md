@@ -77,8 +77,11 @@ npx wrangler d1 create multiport-counter-db
 # 2. Apply the schema
 npx wrangler d1 execute multiport-counter-db --remote --file=./schema.sql
 
-# 3. Set the frontend's real origin (the page users load the app from) so
-#    cookie-based auth is accepted — edit ALLOWED_ORIGIN in wrangler.toml
+# 3. List every frontend origin allowed to call this API with cookies —
+#    edit ALLOWED_ORIGINS in wrangler.toml (comma-separated; CORS with
+#    credentials needs an exact match per origin, no wildcards). Keep both
+#    the Pages URL and a future custom domain listed side by side during
+#    a migration — the Worker echoes back whichever one matches.
 
 # 4. Deploy
 npx wrangler deploy
