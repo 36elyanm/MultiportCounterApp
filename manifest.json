@@ -1,0 +1,18 @@
+{
+  "name": "Multiport Counter",
+  "short_name": "Counter",
+  "description": "A fast, simple tally counter app by Multiport LLC.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
