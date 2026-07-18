@@ -95,9 +95,11 @@ body[data-wallpaper="ocean"]   { background: linear-gradient(135deg, #0F6FBF 0%,
 body[data-wallpaper="candy"]   { background: linear-gradient(135deg, #F6A6C1 0%, #F7C6D9 35%, #C6B8F7 70%, #A6D8F7 100%); }
 body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%, #1B2A4A 40%, #33436E 70%, #4A5A8A 100%); }
 
-/* .app-shell centers the app on any viewport width: edge-to-edge on
-   phones, a centered fixed-width card on tablets/desktops, so resizing
-   the browser window never stretches the layout awkwardly. */
+/* The app always fills the full viewport, at every screen size — no
+   centered "phone card" shrinking on wider windows. Inner content
+   (nav bar, list, sheets) gets its own max-width further down so text
+   doesn't stretch to unreadable widths on very wide screens, but the
+   glass background, orbs, and FAB always span the whole window. */
 .app-shell {
   display: flex;
   justify-content: center;
@@ -110,7 +112,6 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
 #app {
   position: relative;
   width: 100%;
-  max-width: 480px;
   height: 100vh;
   height: 100dvh;
   background: transparent;
@@ -170,14 +171,15 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   padding-bottom: calc(104px + env(safe-area-inset-bottom));
 }
 
-@media (min-width: 560px) {
-  .app-shell { align-items: center; padding: 32px 16px; box-sizing: border-box; }
-  #app {
-    height: min(844px, calc(100vh - 64px));
-    height: min(844px, calc(100dvh - 64px));
-    border-radius: 40px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
+/* Inner content stays a comfortable reading width and centers itself;
+   the app frame around it (background, orbs) still spans edge to edge. */
+.navbar-pill,
+.large-title-row,
+.counter-list,
+.empty-state {
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Accessibility / performance: turns every glass surface into a solid
@@ -262,7 +264,10 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 14px 20px 12px 8px;
+  margin-top: 14px;
+  margin-bottom: 12px;
+  padding: 0 20px 0 8px;
+  box-sizing: border-box;
 }
 
 .brand-icon {
@@ -543,6 +548,7 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   transition: opacity 0.25s ease;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
 }
 .sheet-overlay.open {
   opacity: 1;
@@ -551,6 +557,7 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
 
 .sheet {
   width: 100%;
+  max-width: 560px;
   background: var(--sheet-bg);
   -webkit-backdrop-filter: saturate(180%) blur(var(--glass-panel-blur));
   backdrop-filter: saturate(180%) blur(var(--glass-panel-blur));
