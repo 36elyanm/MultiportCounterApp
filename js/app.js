@@ -70,6 +70,11 @@
   const accountEmail = el("accountEmail");
   const openAuthBtn = el("openAuthBtn");
   const logoutBtn = el("logoutBtn");
+  const childrenSection = el("childrenSection");
+  const childrenList = el("childrenList");
+  const addChildBtn = el("addChildBtn");
+  const readOnlyBanner = el("readOnlyBanner");
+  const readOnlyParentEmail = el("readOnlyParentEmail");
 
   const authOverlay = el("authOverlay");
   const authTitle = el("authTitle");
@@ -93,8 +98,12 @@
   let hapticsEnabled = true;
   let showCurrency = true;
   let currentUser = null;
-  let authMode = "login"; // "login" | "signup"
+  let authMode = "login"; // "login" | "signup" | "addchild"
   let syncTimer = null;
+
+  function isChildAccount() {
+    return Boolean(currentUser && currentUser.parentId);
+  }
 
   // ---------- Persistence ----------
   function load() {
@@ -149,14 +158,75 @@
 
   function setSignedInUI(user) {
     currentUser = user;
+    const childAccount = isChildAccount();
+    appEl.classList.toggle("read-only-account", childAccount);
+
     if (user) {
       accountSignedOut.style.display = "none";
       accountSignedIn.style.display = "block";
       accountEmail.textContent = user.email;
+      childrenSection.style.display = childAccount ? "none" : "block";
+      if (childAccount) {
+        readOnlyBanner.style.display = "flex";
+        readOnlyParentEmail.textContent = user.parentEmail || "your parent";
+      } else {
+        readOnlyBanner.style.display = "none";
+        loadChildren();
+      }
     } else {
       accountSignedOut.style.display = "block";
       accountSignedIn.style.display = "none";
+      childrenSection.style.display = "none";
+      readOnlyBanner.style.display = "none";
+      childrenList.innerHTML = "";
     }
+    render();
+  }
+
+  async function loadChildren() {
+    try {
+      const data = await api("/api/children");
+      renderChildren((data && data.children) || []);
+    } catch (e) {
+      renderChildren([]);
+    }
+  }
+
+  function renderChildren(children) {
+    childrenList.innerHTML = "";
+    children.forEach((child) => {
+      const row = document.createElement("div");
+      row.className = "child-row";
+
+      const emailEl = document.createElement("span");
+      emailEl.className = "child-email";
+      emailEl.textContent = child.email;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "child-remove-btn";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", () => removeChild(child.id));
+
+      row.appendChild(emailEl);
+      row.appendChild(removeBtn);
+      childrenList.appendChild(row);
+    });
+  }
+
+  async function removeChild(id) {
+    try {
+      await api(`/api/children/${id}`, { method: "DELETE" });
+      haptic(15);
+      await loadChildren();
+    } catch (e) {
+      // Leave the list as-is if the request fails; the user can retry.
+    }
+  }
+
+  async function addChild(email, password) {
+    const data = await api("/api/children", { method: "POST", body: JSON.stringify({ email, password }) });
+    if (!data || !data.child) throw new Error("Unexpected response from the server.");
+    await loadChildren();
   }
 
   async function checkSession() {
@@ -185,8 +255,9 @@
         }));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state.counters));
         render();
-      } else if (state.counters.length > 0) {
+      } else if (state.counters.length > 0 && !isChildAccount()) {
         // New account with existing local (guest) counters — adopt them as the initial cloud data.
+        // A child account never owns counters, so this never applies to one.
         await pushCountersToServer();
       }
     } catch (e) {
@@ -195,7 +266,9 @@
   }
 
   function pushCountersToServer() {
-    if (!currentUser) return Promise.resolve();
+    // The server rejects mutations from a child account anyway (403), but
+    // there's no reason for the client to even try.
+    if (!currentUser || isChildAccount()) return Promise.resolve();
     return api("/api/counters", {
       method: "PUT",
       body: JSON.stringify({ counters: state.counters }),
@@ -205,7 +278,7 @@
   }
 
   function scheduleSync() {
-    if (!currentUser) return;
+    if (!currentUser || isChildAccount()) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(pushCountersToServer, 400);
   }
@@ -325,18 +398,23 @@
   }
 
   function buildCounterCard(counter, index) {
+    const readOnly = isChildAccount();
+
     const card = document.createElement("div");
     card.className = "counter-card";
     card.dataset.id = counter.id;
     card.style.setProperty("--card-index", index);
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "counter-swipe-delete";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.addEventListener("click", () => {
-      haptic(20);
-      removeCounter(counter.id);
-    });
+    let deleteBtn = null;
+    if (!readOnly) {
+      deleteBtn = document.createElement("button");
+      deleteBtn.className = "counter-swipe-delete";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => {
+        haptic(20);
+        removeCounter(counter.id);
+      });
+    }
 
     const content = document.createElement("div");
     content.className = "counter-card-content";
@@ -376,51 +454,57 @@
     countEl.className = "counter-count" + (counter.count < 0 ? " negative" : "");
     countEl.textContent = counter.count;
 
-    let pressTimer = null;
-    countEl.addEventListener("pointerdown", () => {
-      pressTimer = setTimeout(() => {
-        haptic(25);
-        counter.count = 0;
-        save();
-        render();
-      }, 550);
-    });
-    ["pointerup", "pointerleave", "pointercancel"].forEach((evt) => {
-      countEl.addEventListener(evt, () => clearTimeout(pressTimer));
-    });
+    let minusBtn = null;
+    let plusBtn = null;
 
-    const controls = document.createElement("div");
-    controls.className = "counter-controls";
+    if (!readOnly) {
+      let pressTimer = null;
+      countEl.addEventListener("pointerdown", () => {
+        pressTimer = setTimeout(() => {
+          haptic(25);
+          counter.count = 0;
+          save();
+          render();
+        }, 550);
+      });
+      ["pointerup", "pointerleave", "pointercancel"].forEach((evt) => {
+        countEl.addEventListener(evt, () => clearTimeout(pressTimer));
+      });
 
-    const minusBtn = document.createElement("button");
-    minusBtn.className = "stepper-btn minus";
-    minusBtn.textContent = "−";
-    minusBtn.setAttribute("aria-label", `Decrease ${counter.name}`);
-    minusBtn.addEventListener("click", () => bump(counter, -counter.step, countEl, currencyEl));
+      minusBtn = document.createElement("button");
+      minusBtn.className = "stepper-btn minus";
+      minusBtn.textContent = "−";
+      minusBtn.setAttribute("aria-label", `Decrease ${counter.name}`);
+      minusBtn.addEventListener("click", () => bump(counter, -counter.step, countEl, currencyEl));
 
-    const plusBtn = document.createElement("button");
-    plusBtn.className = "stepper-btn plus";
-    plusBtn.textContent = "+";
-    plusBtn.setAttribute("aria-label", `Increase ${counter.name}`);
-    plusBtn.addEventListener("click", () => bump(counter, counter.step, countEl, currencyEl));
-
-    controls.appendChild(minusBtn);
-    controls.appendChild(plusBtn);
+      plusBtn = document.createElement("button");
+      plusBtn.className = "stepper-btn plus";
+      plusBtn.textContent = "+";
+      plusBtn.setAttribute("aria-label", `Increase ${counter.name}`);
+      plusBtn.addEventListener("click", () => bump(counter, counter.step, countEl, currencyEl));
+    }
 
     content.appendChild(swatch);
     content.appendChild(info);
     content.appendChild(countEl);
-    content.appendChild(controls);
 
-    content.addEventListener("click", (e) => {
-      if (e.target === countEl || e.target === minusBtn || e.target === plusBtn) return;
-      openEditSheet(counter);
-    });
+    if (!readOnly) {
+      const controls = document.createElement("div");
+      controls.className = "counter-controls";
+      controls.appendChild(minusBtn);
+      controls.appendChild(plusBtn);
+      content.appendChild(controls);
+
+      content.addEventListener("click", (e) => {
+        if (e.target === countEl || e.target === minusBtn || e.target === plusBtn) return;
+        openEditSheet(counter);
+      });
+    }
 
     card.appendChild(content);
-    card.appendChild(deleteBtn);
+    if (deleteBtn) card.appendChild(deleteBtn);
 
-    attachSwipe(card, content);
+    if (!readOnly) attachSwipe(card, content);
 
     return card;
   }
@@ -690,11 +774,18 @@
     if (mode === "signup") {
       authTitle.textContent = "Create Account";
       authSubmitBtn.textContent = "Create Account";
+      authToggleModeBtn.style.display = "block";
       authToggleModeBtn.textContent = "Already have an account? Sign In";
+      authPasswordInput.setAttribute("autocomplete", "new-password");
+    } else if (mode === "addchild") {
+      authTitle.textContent = "Add Child Account";
+      authSubmitBtn.textContent = "Add Child";
+      authToggleModeBtn.style.display = "none";
       authPasswordInput.setAttribute("autocomplete", "new-password");
     } else {
       authTitle.textContent = "Sign In";
       authSubmitBtn.textContent = "Sign In";
+      authToggleModeBtn.style.display = "block";
       authToggleModeBtn.textContent = "Need an account? Sign Up";
       authPasswordInput.setAttribute("autocomplete", "current-password");
     }
@@ -709,7 +800,20 @@
     setTimeout(() => authEmailInput.focus(), 300);
   }
 
+  function openAddChildSheet() {
+    setAuthMode("addchild");
+    authEmailInput.value = "";
+    authPasswordInput.value = "";
+    closeSheet(settingsOverlay);
+    openSheet(authOverlay);
+    setTimeout(() => authEmailInput.focus(), 300);
+  }
+
   openAuthBtn.addEventListener("click", openAuthSheet);
+  addChildBtn.addEventListener("click", () => {
+    haptic(10);
+    openAddChildSheet();
+  });
   closeAuthBtn.addEventListener("click", () => closeSheet(authOverlay));
   authToggleModeBtn.addEventListener("click", () => setAuthMode(authMode === "login" ? "signup" : "login"));
 
@@ -724,11 +828,15 @@
     const modeAtSubmit = authMode;
     const originalLabel = authSubmitBtn.textContent;
     authSubmitBtn.disabled = true;
-    authSubmitBtn.textContent = modeAtSubmit === "signup" ? "Creating Account…" : "Signing In…";
+    authSubmitBtn.textContent =
+      modeAtSubmit === "signup" ? "Creating Account…" : modeAtSubmit === "addchild" ? "Adding…" : "Signing In…";
     authError.style.display = "none";
     try {
       if (modeAtSubmit === "signup") {
         await signup(email, password);
+      } else if (modeAtSubmit === "addchild") {
+        await addChild(email, password);
+        openSheet(settingsOverlay);
       } else {
         await login(email, password);
       }

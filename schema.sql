@@ -5,8 +5,10 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   password_salt TEXT NOT NULL,
+  parent_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_users_parent_id ON users(parent_id);
 
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,

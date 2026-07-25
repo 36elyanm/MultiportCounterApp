@@ -1,4 +1,7 @@
-import { requireUser, json, newId } from "../_lib/auth.js";
+import { requireUser, isChild, ownerIdFor, json, newId } from "../_lib/auth.js";
+
+// GET is allowed for child accounts — they view their parent's counters —
+// but every mutation below rejects child accounts outright.
 
 export async function onRequestGet({ request, env }) {
   const user = await requireUser(request, env);
@@ -7,7 +10,7 @@ export async function onRequestGet({ request, env }) {
   const { results } = await env.DB.prepare(
     "SELECT id, name, count, step, color, icon, sort_order FROM counters WHERE user_id = ? ORDER BY sort_order ASC, created_at ASC"
   )
-    .bind(user.id)
+    .bind(ownerIdFor(user))
     .all();
   return json({ counters: results }, 200);
 }
@@ -15,6 +18,7 @@ export async function onRequestGet({ request, env }) {
 export async function onRequestPut({ request, env }) {
   const user = await requireUser(request, env);
   if (!user) return json({ error: "Not signed in." }, 401);
+  if (isChild(user)) return json({ error: "Child accounts are read-only." }, 403);
 
   const body = await request.json().catch(() => null);
   if (!body || !Array.isArray(body.counters)) {
@@ -49,6 +53,7 @@ export async function onRequestPut({ request, env }) {
 export async function onRequestDelete({ request, env }) {
   const user = await requireUser(request, env);
   if (!user) return json({ error: "Not signed in." }, 401);
+  if (isChild(user)) return json({ error: "Child accounts are read-only." }, 403);
 
   await env.DB.prepare("DELETE FROM counters WHERE user_id = ?").bind(user.id).run();
   return json({ ok: true }, 200);

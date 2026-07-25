@@ -8,7 +8,7 @@ export async function onRequestPost({ request, env }) {
   const email = body.email.trim().toLowerCase();
 
   const user = await env.DB.prepare(
-    "SELECT id, email, password_hash, password_salt FROM users WHERE email = ?"
+    "SELECT id, email, password_hash, password_salt, parent_id as parentId FROM users WHERE email = ?"
   )
     .bind(email)
     .first();
@@ -22,7 +22,7 @@ export async function onRequestPost({ request, env }) {
 
   const { token } = await createSession(env.DB, user.id);
   return jsonWithCookie(
-    { user: { id: user.id, email: user.email } },
+    { user: { id: user.id, email: user.email, parentId: user.parentId || null } },
     200,
     sessionCookie(token, 30 * 24 * 60 * 60)
   );

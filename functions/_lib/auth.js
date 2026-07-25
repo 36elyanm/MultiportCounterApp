@@ -61,11 +61,21 @@ export async function getUserFromSession(db, token) {
   if (!token) return null;
   const row = await db
     .prepare(
-      "SELECT users.id as id, users.email as email FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token = ? AND sessions.expires_at > ?"
+      "SELECT users.id as id, users.email as email, users.parent_id as parentId FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token = ? AND sessions.expires_at > ?"
     )
     .bind(token, Date.now())
     .first();
   return row || null;
+}
+
+// A child account's counters ARE the parent's counters — this is the one
+// id every counter query/mutation should key off of.
+export function ownerIdFor(user) {
+  return user.parentId || user.id;
+}
+
+export function isChild(user) {
+  return Boolean(user.parentId);
 }
 
 export async function deleteSession(db, token) {

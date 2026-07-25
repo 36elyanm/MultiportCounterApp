@@ -21,5 +21,9 @@ export async function onRequestPost({ request, env }) {
     .run();
 
   const { token } = await createSession(env.DB, userId);
-  return jsonWithCookie({ user: { id: userId, email } }, 201, sessionCookie(token, 30 * 24 * 60 * 60));
+  return jsonWithCookie(
+    { user: { id: userId, email, parentId: null } },
+    201,
+    sessionCookie(token, 30 * 24 * 60 * 60)
+  );
 }

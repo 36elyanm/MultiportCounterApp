@@ -47,6 +47,10 @@
         <img src="assets/icon.svg" class="brand-icon" alt="" />
         <h2 class="navbar-large-title">Counters</h2>
       </div>
+      <div id="readOnlyBanner" class="read-only-banner" style="display:none;">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M6 10V8a6 6 0 1112 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z"/></svg>
+        <span>Viewing <strong id="readOnlyParentEmail"></strong>'s counters — view only</span>
+      </div>
     </header>
 
     <!-- Counter List -->
@@ -109,6 +113,11 @@
         <div class="account-row">
           <span id="accountEmail" class="account-email"></span>
           <button id="logoutBtn" class="account-logout-btn">Log Out</button>
+        </div>
+        <div id="childrenSection" style="display:none;">
+          <p class="account-hint">Children can view these counters but can never change them.</p>
+          <div id="childrenList" class="children-list"></div>
+          <button id="addChildBtn" class="sheet-action-btn">Add Child Account</button>
         </div>
       </div>
 

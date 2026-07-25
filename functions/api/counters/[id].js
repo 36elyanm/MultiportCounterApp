@@ -1,8 +1,9 @@
-import { requireUser, json } from "../../_lib/auth.js";
+import { requireUser, isChild, json } from "../../_lib/auth.js";
 
 export async function onRequestPatch({ request, env, params }) {
   const user = await requireUser(request, env);
   if (!user) return json({ error: "Not signed in." }, 401);
+  if (isChild(user)) return json({ error: "Child accounts are read-only." }, 403);
 
   const id = params.id;
   const body = await request.json().catch(() => null);
@@ -42,6 +43,7 @@ export async function onRequestPatch({ request, env, params }) {
 export async function onRequestDelete({ request, env, params }) {
   const user = await requireUser(request, env);
   if (!user) return json({ error: "Not signed in." }, 401);
+  if (isChild(user)) return json({ error: "Child accounts are read-only." }, 403);
 
   await env.DB.prepare("DELETE FROM counters WHERE id = ? AND user_id = ?").bind(params.id, user.id).run();
   return json({ ok: true }, 200);

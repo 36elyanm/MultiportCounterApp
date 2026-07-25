@@ -862,6 +862,68 @@ body[data-wallpaper="midnight"]{ background: linear-gradient(135deg, #0B1220 0%,
   padding: 4px 0;
 }
 
+#childrenSection { margin-top: 14px; }
+
+.children-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.child-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border-soft);
+  background: var(--glass-control-bg);
+  -webkit-backdrop-filter: blur(var(--glass-control-blur));
+  backdrop-filter: blur(var(--glass-control-blur));
+}
+.child-email {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.child-remove-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--red);
+  font-family: var(--font-system);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+/* ---------- Read-only (child) accounts ---------- */
+.read-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 20px 12px 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--glass-control-bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.read-only-banner .icon { width: 18px; height: 18px; fill: var(--accent); flex-shrink: 0; }
+
+/* Nothing that mutates data is shown to a signed-in child account. */
+#app.read-only-account .fab,
+#app.read-only-account #editBtn,
+#app.read-only-account #resetAllBtn,
+#app.read-only-account #deleteAllBtn {
+  display: none !important;
+}
+
 .settings-note {
   font-size: 13px;
   color: var(--text-secondary);

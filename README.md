@@ -63,6 +63,12 @@ By default the app works exactly like a local-only app: counters are saved in th
 - Signing up while you already have local counters adopts them as your first cloud save; signing into an existing account pulls down whatever was saved there.
 - Signing out returns to local-only mode; your last-synced data stays cached in `localStorage`.
 
+### Child accounts (view-only)
+
+A signed-in account (a "parent") can add a **child account** from Settings → Account → **Add Child Account**, giving it its own email/password. When that child signs in, they see the parent's counters exactly as they are — but every counter-mutating action (the `+`/`−` steppers, add/edit/delete a counter, long-press reset, swipe to delete, Reset All, Delete All) is hidden in the UI *and* rejected by the API itself if attempted directly, so it isn't just a UI restriction. A banner at the top makes it clear whose counters they're viewing, and the parent can remove a child account at any time from that same screen (which also signs that child out everywhere, immediately).
+
+A child account can't create children of its own — only a top-level (non-child) account can add children.
+
 ### Deploying the backend
 
 The API lives in `functions/api/` (file-based routing — `functions/api/signup.js` becomes `POST /api/signup`, `functions/api/counters/[id].js` becomes `/api/counters/:id`, etc.) and `functions/_lib/auth.js` holds the shared password-hashing/session helpers. Everything here is entirely dashboard-driven — no CLI required:
@@ -74,7 +80,9 @@ The API lives in `functions/api/` (file-based routing — `functions/api/signup.
 
 That's it — no `API_BASE_URL` to set (it's `""`, i.e. same-origin, in `js/app.js`) and nothing to keep in sync between a separate API domain and the frontend.
 
-`schema.sql` defines three tables: `users` (email + salted/hashed password via PBKDF2), `sessions` (random tokens, 30-day expiry, set as an `HttpOnly`/`Secure` cookie), and `counters` (one row per counter, scoped to `user_id`).
+`schema.sql` defines three tables: `users` (email + salted/hashed password via PBKDF2, plus a nullable `parent_id` for child accounts), `sessions` (random tokens, 30-day expiry, set as an `HttpOnly`/`Secure` cookie), and `counters` (one row per counter, scoped to `user_id`).
+
+**If your D1 database already existed before child accounts were added** (i.e. you ran the original `schema.sql` already), it won't have the `parent_id` column yet. Paste the contents of `migrations/001_add_child_accounts.sql` into the same D1 **Console** tab and run it once — a brand-new database created from the current `schema.sql` already includes this column and doesn't need it.
 
 ## Getting Started
 
@@ -103,6 +111,8 @@ MultiportCounterApp/
 ├── index.html          # App markup
 ├── manifest.json       # Web app manifest (installable/PWA metadata)
 ├── schema.sql           # D1 schema — run once via the D1 dashboard console
+├── migrations/
+│   └── 001_add_child_accounts.sql  # Run once against a pre-existing database
 ├── css/
 │   └── style.css       # Apple-style UI, light/dark themes
 ├── js/
@@ -114,15 +124,18 @@ MultiportCounterApp/
 │       └── OFL.txt            # Inter's SIL Open Font License
 ├── functions/            # Cloudflare Pages Functions (optional backend)
 │   ├── _lib/
-│   │   └── auth.js       # Password hashing (PBKDF2) and session helpers
+│   │   └── auth.js       # Password hashing (PBKDF2), sessions, child-account helpers
 │   └── api/
 │       ├── signup.js     # POST /api/signup
 │       ├── login.js      # POST /api/login
 │       ├── logout.js     # POST /api/logout
 │       ├── me.js         # GET /api/me
 │       ├── counters.js   # GET/PUT/DELETE /api/counters
-│       └── counters/
-│           └── [id].js   # PATCH/DELETE /api/counters/:id
+│       ├── counters/
+│       │   └── [id].js   # PATCH/DELETE /api/counters/:id
+│       ├── children.js   # GET/POST /api/children — list/add child accounts
+│       └── children/
+│           └── [id].js   # DELETE /api/children/:id — remove a child account
 └── README.md
 ```
 
