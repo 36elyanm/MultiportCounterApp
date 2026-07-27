@@ -1,7 +1,7 @@
 {
   "name": "Multiport Counter™",
   "short_name": "Counter",
-  "description": "A fast, simple tally counter app by Multiport LLC.",
+  "description": "A fast, simple tally counter app by Multiport.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#F2F2F7",

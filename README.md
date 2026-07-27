@@ -2,7 +2,7 @@
 
 A fast, minimal tally counter app, inspired by apps like **Tally** and **Mini Counter**. Keep as many counters as you want — reps, water glasses, scores, habits, laps — and tap to count. Built with Apple's **Liquid Glass** design language — translucent, refractive material with specular highlights, floating pill-shaped toolbars, and glass bottom sheets — and deeply customizable, so you can make it look like yours.
 
-**Made by Multiport LLC**
+**Made by Multiport**
 
 ## Features
 
@@ -145,4 +145,4 @@ Frontend: plain HTML, CSS, and vanilla JavaScript — no frameworks, no build to
 
 ## License
 
-© Multiport LLC. All rights reserved.
+© Multiport. All rights reserved.
