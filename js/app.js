@@ -882,6 +882,9 @@
     currencyToggle.checked = showCurrency;
     render();
 
+    const copyrightYearEl = el("copyrightYear");
+    if (copyrightYearEl) copyrightYearEl.textContent = new Date().getFullYear();
+
     checkSession();
   }
 
