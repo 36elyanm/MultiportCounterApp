@@ -162,22 +162,22 @@
     appEl.classList.toggle("read-only-account", childAccount);
 
     if (user) {
-      accountSignedOut.style.display = "none";
-      accountSignedIn.style.display = "block";
+      accountSignedOut.classList.add("is-hidden");
+      accountSignedIn.classList.remove("is-hidden");
       accountEmail.textContent = user.email;
-      childrenSection.style.display = childAccount ? "none" : "block";
+      childrenSection.classList.toggle("is-hidden", childAccount);
       if (childAccount) {
-        readOnlyBanner.style.display = "flex";
+        readOnlyBanner.classList.remove("is-hidden");
         readOnlyParentEmail.textContent = user.parentEmail || "your parent";
       } else {
-        readOnlyBanner.style.display = "none";
+        readOnlyBanner.classList.add("is-hidden");
         loadChildren();
       }
     } else {
-      accountSignedOut.style.display = "block";
-      accountSignedIn.style.display = "none";
-      childrenSection.style.display = "none";
-      readOnlyBanner.style.display = "none";
+      accountSignedOut.classList.remove("is-hidden");
+      accountSignedIn.classList.add("is-hidden");
+      childrenSection.classList.add("is-hidden");
+      readOnlyBanner.classList.add("is-hidden");
       childrenList.innerHTML = "";
     }
     render();
@@ -770,22 +770,22 @@
   // ---------- Account / Auth ----------
   function setAuthMode(mode) {
     authMode = mode;
-    authError.style.display = "none";
+    authError.classList.add("is-hidden");
     if (mode === "signup") {
       authTitle.textContent = "Create Account";
       authSubmitBtn.textContent = "Create Account";
-      authToggleModeBtn.style.display = "block";
+      authToggleModeBtn.classList.remove("is-hidden");
       authToggleModeBtn.textContent = "Already have an account? Sign In";
       authPasswordInput.setAttribute("autocomplete", "new-password");
     } else if (mode === "addchild") {
       authTitle.textContent = "Add Child Account";
       authSubmitBtn.textContent = "Add Child";
-      authToggleModeBtn.style.display = "none";
+      authToggleModeBtn.classList.add("is-hidden");
       authPasswordInput.setAttribute("autocomplete", "new-password");
     } else {
       authTitle.textContent = "Sign In";
       authSubmitBtn.textContent = "Sign In";
-      authToggleModeBtn.style.display = "block";
+      authToggleModeBtn.classList.remove("is-hidden");
       authToggleModeBtn.textContent = "Need an account? Sign Up";
       authPasswordInput.setAttribute("autocomplete", "current-password");
     }
@@ -822,7 +822,7 @@
     const password = authPasswordInput.value;
     if (!email || !password) {
       authError.textContent = "Please enter an email and password.";
-      authError.style.display = "block";
+      authError.classList.remove("is-hidden");
       return;
     }
     const modeAtSubmit = authMode;
@@ -830,7 +830,7 @@
     authSubmitBtn.disabled = true;
     authSubmitBtn.textContent =
       modeAtSubmit === "signup" ? "Creating Account…" : modeAtSubmit === "addchild" ? "Adding…" : "Signing In…";
-    authError.style.display = "none";
+    authError.classList.add("is-hidden");
     try {
       if (modeAtSubmit === "signup") {
         await signup(email, password);
@@ -844,7 +844,7 @@
       closeSheet(authOverlay);
     } catch (err) {
       authError.textContent = err.message || "Something went wrong.";
-      authError.style.display = "block";
+      authError.classList.remove("is-hidden");
       haptic(20);
     } finally {
       authSubmitBtn.disabled = false;

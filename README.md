@@ -143,6 +143,12 @@ MultiportCounterApp/
 
 Frontend: plain HTML, CSS, and vanilla JavaScript — no frameworks, no build tools. Counters are always persisted locally with `localStorage`, and optionally synced to a Cloudflare D1 database through Cloudflare Pages Functions when signed in (see [Accounts & Cloud Sync](#accounts--cloud-sync)).
 
+## Security Headers
+
+`_headers` (repo root) sets a strict `Content-Security-Policy` — `script-src 'self'` and `style-src 'self'` with **no `unsafe-inline`** — plus `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and a locked-down `Permissions-Policy`. Cloudflare Pages reads this file automatically and applies it to every response; no dashboard configuration needed.
+
+This works cleanly because the app has zero inline `<script>` tags, inline event-handler attributes, or `<style>` blocks, and the markup carries no literal `style="..."` attributes — every dynamic show/hide in `js/app.js` toggles an `.is-hidden` CSS class instead (`js/app.js` still sets per-element inline styles via the CSSOM, e.g. `el.style.background = ...` for swatch colors and `el.style.setProperty('--accent', ...)`, which the CSP spec exempts from the inline-style restriction — that's not the same thing as a literal `style` HTML attribute, so it needs no `unsafe-inline` allowance). If you ever add an inline `<script>`, a `style="..."` attribute, or a third-party embed, update `_headers` to match (a nonce/hash, or an added source) rather than reaching for `unsafe-inline`.
+
 ## License
 
 © Multiport. All rights reserved.

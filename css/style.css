@@ -78,6 +78,11 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/* Show/hide utility — used instead of inline style="display:none" so no
+   markup needs an inline style attribute (keeps style-src CSP-clean,
+   no 'unsafe-inline' required). */
+.is-hidden { display: none !important; }
+
 html, body {
   height: 100%;
   margin: 0;
